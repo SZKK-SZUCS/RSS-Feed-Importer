@@ -128,5 +128,6 @@ if ( class_exists( '\YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
 		'rss-feed-importer'
 	);
 	$update_checker->setBranch( 'main' );
+	$update_checker->getVcsApi()->enableReleaseAssets( '/rss-feed-importer-.*\.zip$/i' );
 }
 RSS_Feed_Importer::init();
