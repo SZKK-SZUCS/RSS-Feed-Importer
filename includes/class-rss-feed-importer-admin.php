@@ -101,6 +101,7 @@ final class RSS_Feed_Importer_Admin {
 				'author'   => isset( $feed['author'] ) ? sanitize_text_field( $feed['author'] ) : '',
 				'category' => $category,
 				'language' => isset( $feed['language'] ) ? sanitize_key( $feed['language'] ) : '',
+				'retain_20' => ! empty( $feed['retain_20'] ) ? 1 : 0,
 				'enabled' => isset( $feed['enabled'] ) && '0' !== (string) $feed['enabled'] ? 1 : 0,
 			);
 		}
@@ -127,7 +128,7 @@ final class RSS_Feed_Importer_Admin {
 				<?php $this->render_feed_card( $index, $feed ); ?>
 			<?php endforeach; ?>
 		</div>
-		<template class="rss-feed-importer-feed-card-template"><?php $this->render_feed_card( '__INDEX__', array( 'url' => '', 'name' => '', 'author' => '', 'category' => 0, 'language' => '', 'enabled' => 1 ) ); ?></template>
+		<template class="rss-feed-importer-feed-card-template"><?php $this->render_feed_card( '__INDEX__', array( 'url' => '', 'name' => '', 'author' => '', 'category' => 0, 'language' => '', 'retain_20' => 0, 'enabled' => 1 ) ); ?></template>
 		<p><button type="button" class="button" id="rss-feed-importer-add-feed"><?php esc_html_e( 'Add feed', 'rss-feed-importer' ); ?></button></p>
 		<p class="description"><?php esc_html_e( 'The feed name, author and category are stored with each imported post. Empty feed name uses the RSS channel title; empty author uses dc:creator.', 'rss-feed-importer' ); ?><?php if ( empty( $categories ) ) : ?> <?php esc_html_e( 'Create at least one WordPress category before assigning categories to feeds.', 'rss-feed-importer' ); ?><?php endif; ?></p>
 		<div class="rss-feed-importer-modal" id="rss-feed-importer-modal" hidden>
@@ -143,6 +144,7 @@ final class RSS_Feed_Importer_Admin {
 					<label><?php esc_html_e( 'Category', 'rss-feed-importer' ); ?><?php echo $this->get_category_select_html( 'rss_modal_category', 0, $categories ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
 					<label><?php esc_html_e( 'Language', 'rss-feed-importer' ); ?><?php echo $this->get_language_select_html( 'rss_modal_language', '', $languages ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></label>
 					<label class="rss-modal-enabled"><input type="checkbox" id="rss-modal-enabled"> <?php esc_html_e( 'Import this feed', 'rss-feed-importer' ); ?></label>
+					<label class="rss-modal-enabled"><input type="checkbox" id="rss-modal-retain-20"> <?php esc_html_e( 'Keep only the 20 newest imported posts', 'rss-feed-importer' ); ?></label>
 				</div>
 				<div class="rss-feed-importer-modal-actions"><button type="button" class="button" id="rss-modal-preview"><span class="dashicons dashicons-visibility"></span><?php esc_html_e( 'Preview feed', 'rss-feed-importer' ); ?></button><button type="button" class="button button-primary" id="rss-modal-save"><?php esc_html_e( 'Save feed', 'rss-feed-importer' ); ?></button></div>
 				<div class="rss-feed-importer-preview" id="rss-modal-preview-result"></div>
@@ -153,13 +155,13 @@ final class RSS_Feed_Importer_Admin {
 			const list = document.querySelector('#rss-feed-importer-feed-list'); const modal = document.querySelector('#rss-feed-importer-modal'); const add = document.querySelector('#rss-feed-importer-add-feed'); let activeCard = null; let nextIndex = list ? list.querySelectorAll('.rss-feed-importer-feed-card').length : 0;
 			if (!list || !modal) return;
 			const field = id => document.querySelector('#' + id); const hidden = (card, key) => card.querySelector('[data-feed-field="' + key + '"]');
-			function openEditor(card) { activeCard = card; field('rss-modal-url').value = hidden(card, 'url').value; field('rss-modal-name').value = hidden(card, 'name').value; field('rss-modal-author').value = hidden(card, 'author').value; field('rss_modal_category').value = hidden(card, 'category').value; field('rss_modal_language').value = hidden(card, 'language').value; field('rss-modal-enabled').checked = hidden(card, 'enabled').value === '1'; field('rss-modal-preview-result').innerHTML = ''; modal.hidden = false; document.body.classList.add('rss-feed-importer-modal-open'); field('rss-modal-url').focus(); }
+			function openEditor(card) { activeCard = card; field('rss-modal-url').value = hidden(card, 'url').value; field('rss-modal-name').value = hidden(card, 'name').value; field('rss-modal-author').value = hidden(card, 'author').value; field('rss_modal_category').value = hidden(card, 'category').value; field('rss_modal_language').value = hidden(card, 'language').value; field('rss-modal-enabled').checked = hidden(card, 'enabled').value === '1'; field('rss-modal-retain-20').checked = hidden(card, 'retain_20').value === '1'; field('rss-modal-preview-result').innerHTML = ''; modal.hidden = false; document.body.classList.add('rss-feed-importer-modal-open'); field('rss-modal-url').focus(); }
 			function closeEditor() { modal.hidden = true; document.body.classList.remove('rss-feed-importer-modal-open'); activeCard = null; }
 			function setHidden(card, key, value) { hidden(card, key).value = value; }
 			function updateCard(card) { const title = card.querySelector('[data-feed-title]'); const url = card.querySelector('[data-feed-url]'); const meta = card.querySelector('[data-feed-meta]'); const category = card.querySelector('[data-feed-category-label]'); if (title) title.textContent = hidden(card, 'name').value || hidden(card, 'url').value || '<?php echo esc_js( __( 'Unnamed feed', 'rss-feed-importer' ) ); ?>'; if (url) url.textContent = hidden(card, 'url').value || '<?php echo esc_js( __( 'No URL configured', 'rss-feed-importer' ) ); ?>'; if (meta) meta.textContent = [hidden(card, 'author').value, category ? category.textContent : '', hidden(card, 'language').value].filter(Boolean).join(' · '); card.classList.toggle('is-disabled', hidden(card, 'enabled').value !== '1'); }
 			function escapeHtml(value) { const div = document.createElement('div'); div.textContent = value || ''; return div.innerHTML; }
 			function preview() { const url = field('rss-modal-url').value.trim(); const box = field('rss-modal-preview-result'); if (!url) { box.textContent = '<?php echo esc_js( __( 'Enter a feed URL first.', 'rss-feed-importer' ) ); ?>'; return; } box.textContent = '<?php echo esc_js( __( 'Loading preview...', 'rss-feed-importer' ) ); ?>'; fetch(ajaxurl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'rss_feed_importer_preview', nonce: '<?php echo esc_js( wp_create_nonce( 'rss_feed_importer_admin' ) ); ?>', url: url }) }).then(response => response.json()).then(response => { if (!response.success) throw new Error(response.data); box.innerHTML = '<strong>' + response.data.count + ' <?php echo esc_js( __( 'articles available', 'rss-feed-importer' ) ); ?></strong>' + response.data.items.map(item => '<article><b>' + escapeHtml(item.title) + '</b><small>' + escapeHtml(item.date) + '</small><p>' + escapeHtml(item.excerpt) + '</p></article>').join(''); }).catch(error => { box.textContent = error.message; }); }
-			function saveFeed() { if (!field('rss-modal-url').checkValidity()) { field('rss-modal-url').reportValidity(); return; } const feed = { url: field('rss-modal-url').value.trim(), name: field('rss-modal-name').value.trim(), author: field('rss-modal-author').value.trim(), category: field('rss_modal_category').value, language: field('rss_modal_language').value, enabled: field('rss-modal-enabled').checked ? '1' : '0' }; const saveButton = field('rss-modal-save'); saveButton.disabled = true; const payload = new URLSearchParams({ action: 'rss_feed_importer_save_feed', nonce: '<?php echo esc_js( wp_create_nonce( 'rss_feed_importer_admin' ) ); ?>', index: activeCard.dataset.index, 'feed[url]': feed.url, 'feed[name]': feed.name, 'feed[author]': feed.author, 'feed[category]': feed.category, 'feed[language]': feed.language, 'feed[enabled]': feed.enabled }); fetch(ajaxurl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: payload }).then(response => response.json()).then(response => { if (!response.success) throw new Error(response.data); Object.keys(feed).forEach(key => setHidden(activeCard, key, feed[key])); const category = activeCard.querySelector('[data-feed-category-label]'); if (category) category.textContent = field('rss_modal_category').selectedOptions[0]?.text || '<?php echo esc_js( __( 'No category', 'rss-feed-importer' ) ); ?>'; updateCard(activeCard); closeEditor(); }).catch(error => window.alert(error.message)).finally(() => { saveButton.disabled = false; }); }
+			function saveFeed() { if (!field('rss-modal-url').checkValidity()) { field('rss-modal-url').reportValidity(); return; } const feed = { url: field('rss-modal-url').value.trim(), name: field('rss-modal-name').value.trim(), author: field('rss-modal-author').value.trim(), category: field('rss_modal_category').value, language: field('rss_modal_language').value, retain_20: field('rss-modal-retain-20').checked ? '1' : '0', enabled: field('rss-modal-enabled').checked ? '1' : '0' }; const saveButton = field('rss-modal-save'); saveButton.disabled = true; const payload = new URLSearchParams({ action: 'rss_feed_importer_save_feed', nonce: '<?php echo esc_js( wp_create_nonce( 'rss_feed_importer_admin' ) ); ?>', index: activeCard.dataset.index, 'feed[url]': feed.url, 'feed[name]': feed.name, 'feed[author]': feed.author, 'feed[category]': feed.category, 'feed[language]': feed.language, 'feed[retain_20]': feed.retain_20, 'feed[enabled]': feed.enabled }); fetch(ajaxurl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: payload }).then(response => response.json()).then(response => { if (!response.success) throw new Error(response.data); Object.keys(feed).forEach(key => setHidden(activeCard, key, feed[key])); const category = activeCard.querySelector('[data-feed-category-label]'); if (category) category.textContent = field('rss_modal_category').selectedOptions[0]?.text || '<?php echo esc_js( __( 'No category', 'rss-feed-importer' ) ); ?>'; updateCard(activeCard); closeEditor(); }).catch(error => window.alert(error.message)).finally(() => { saveButton.disabled = false; }); }
 			add.addEventListener('click', function () { const template = document.querySelector('.rss-feed-importer-feed-card-template'); if (template) { const index = nextIndex++; const fragment = template.content.cloneNode(true); const card = fragment.firstElementChild; card.innerHTML = card.innerHTML.split('__INDEX__').join(index); card.dataset.index = index; list.appendChild(card); openEditor(card); } });
 			list.addEventListener('click', function (event) { const edit = event.target.closest('[data-rss-edit]'); if (edit) openEditor(edit.closest('.rss-feed-importer-feed-card')); const remove = event.target.closest('[data-rss-remove]'); if (remove) { const card = remove.closest('.rss-feed-importer-feed-card'); const url = hidden(card, 'url').value.trim(); if (url && !window.confirm('<?php echo esc_js( __( 'Remove this feed profile?', 'rss-feed-importer' ) ); ?>')) return; if (url && window.confirm('<?php echo esc_js( __( 'Also permanently delete posts imported from this feed?', 'rss-feed-importer' ) ); ?>')) { fetch(ajaxurl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'rss_feed_importer_delete_posts', nonce: '<?php echo esc_js( wp_create_nonce( 'rss_feed_importer_admin' ) ); ?>', url: url }) }).catch(() => {}); } card.remove(); } });
 			list.addEventListener('click', function (event) { const deleteButton = event.target.closest('[data-rss-delete-posts]'); if (!deleteButton) return; const card = deleteButton.closest('.rss-feed-importer-feed-card'); const url = hidden(card, 'url').value.trim(); if (!url || !window.confirm('<?php echo esc_js( __( 'Permanently delete all imported posts from this feed?', 'rss-feed-importer' ) ); ?>')) return; deleteButton.disabled = true; fetch(ajaxurl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ action: 'rss_feed_importer_delete_posts', nonce: '<?php echo esc_js( wp_create_nonce( 'rss_feed_importer_admin' ) ); ?>', url: url }) }).then(response => response.json()).then(response => { if (!response.success) throw new Error(response.data); window.alert(response.data.deleted + ' <?php echo esc_js( __( 'imported posts deleted.', 'rss-feed-importer' ) ); ?>'); }).catch(error => window.alert(error.message)).finally(() => { deleteButton.disabled = false; }); });
@@ -175,6 +177,7 @@ final class RSS_Feed_Importer_Admin {
 		$author = isset( $feed['author'] ) ? $feed['author'] : '';
 		$category = isset( $feed['category'] ) ? absint( $feed['category'] ) : 0;
 		$language = isset( $feed['language'] ) ? $feed['language'] : '';
+		$retain_20 = ! empty( $feed['retain_20'] );
 		$enabled = ! isset( $feed['enabled'] ) || $feed['enabled'];
 		$category_term = $category ? get_term( $category, 'category' ) : false;
 		$category_label = $category_term && ! is_wp_error( $category_term ) ? $category_term->name : __( 'No category', 'rss-feed-importer' );
@@ -185,6 +188,7 @@ final class RSS_Feed_Importer_Admin {
 			<input type="hidden" data-feed-field="author" name="<?php echo esc_attr( RSS_Feed_Importer::OPTION_NAME ); ?>[<?php echo esc_attr( $index ); ?>][author]" value="<?php echo esc_attr( $author ); ?>">
 			<input type="hidden" data-feed-field="category" name="<?php echo esc_attr( RSS_Feed_Importer::OPTION_NAME ); ?>[<?php echo esc_attr( $index ); ?>][category]" value="<?php echo esc_attr( $category ); ?>">
 			<input type="hidden" data-feed-field="language" name="<?php echo esc_attr( RSS_Feed_Importer::OPTION_NAME ); ?>[<?php echo esc_attr( $index ); ?>][language]" value="<?php echo esc_attr( $language ); ?>">
+			<input type="hidden" data-feed-field="retain_20" name="<?php echo esc_attr( RSS_Feed_Importer::OPTION_NAME ); ?>[<?php echo esc_attr( $index ); ?>][retain_20]" value="<?php echo $retain_20 ? '1' : '0'; ?>">
 			<input type="hidden" data-feed-field="enabled" name="<?php echo esc_attr( RSS_Feed_Importer::OPTION_NAME ); ?>[<?php echo esc_attr( $index ); ?>][enabled]" value="<?php echo $enabled ? '1' : '0'; ?>">
 			<div class="rss-feed-importer-feed-status"><span class="rss-feed-importer-status-dot"></span></div>
 			<div class="rss-feed-importer-feed-main"><strong data-feed-title><?php echo esc_html( $name ? $name : $feed['url'] ); ?></strong><span data-feed-url><?php echo esc_html( $feed['url'] ); ?></span><small data-feed-meta><span data-feed-category-label><?php echo esc_html( $category_label ); ?></span><?php if ( $author ) : ?> · <?php echo esc_html( $author ); ?><?php endif; ?><?php if ( $language ) : ?> · <?php echo esc_html( strtoupper( $language ) ); ?><?php endif; ?></small></div>
@@ -196,7 +200,7 @@ final class RSS_Feed_Importer_Admin {
 	private function normalize_feeds( $feeds ) {
 		$normalized = array();
 		foreach ( (array) $feeds as $feed ) {
-			$normalized[] = is_string( $feed ) ? array( 'url' => $feed, 'name' => '', 'author' => '', 'category' => 0, 'language' => '', 'enabled' => 1 ) : $feed;
+			$normalized[] = is_string( $feed ) ? array( 'url' => $feed, 'name' => '', 'author' => '', 'category' => 0, 'language' => '', 'retain_20' => 0, 'enabled' => 1 ) : $feed;
 		}
 		return $normalized;
 	}
@@ -355,11 +359,19 @@ final class RSS_Feed_Importer_Admin {
 		);
 		$count = 0;
 		foreach ( (array) $query->posts as $post_id ) {
-			if ( wp_delete_post( $post_id, true ) ) {
+			if ( $this->delete_post_with_media( $post_id ) ) {
 				$count++;
 			}
 		}
 		return $count;
+	}
+
+	private function delete_post_with_media( $post_id ) {
+		$thumbnail_id = get_post_thumbnail_id( $post_id );
+		if ( $thumbnail_id ) {
+			wp_delete_attachment( $thumbnail_id, true );
+		}
+		return wp_delete_post( $post_id, true );
 	}
 
 	private function verify_ajax_request() {
@@ -375,7 +387,16 @@ final class RSS_Feed_Importer_Admin {
 		}
 		$feeds       = $this->normalize_feeds( get_option( RSS_Feed_Importer::OPTION_NAME, array() ) );
 		$active_feeds = count( array_filter( $feeds, function ( $feed ) { return ! isset( $feed['enabled'] ) || $feed['enabled']; } ) );
-		$published   = wp_count_posts( 'post' );
+		$imported_posts = new WP_Query(
+			array(
+				'post_type'      => 'post',
+				'post_status'    => 'any',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'no_found_rows'   => false,
+				'meta_key'       => '_rss_item_guid',
+			)
+		);
 		$last_sync   = get_option( RSS_Feed_Importer::LAST_SYNC_OPTION, array() );
 		$next_sync   = wp_next_scheduled( RSS_Feed_Importer::CRON_HOOK );
 		?>
@@ -391,7 +412,7 @@ final class RSS_Feed_Importer_Admin {
 			<div class="rss-feed-importer-stats">
 				<div class="rss-feed-importer-stat"><span class="dashicons dashicons-rss"></span><strong><?php echo esc_html( count( $feeds ) ); ?></strong><small><?php esc_html_e( 'Configured feeds', 'rss-feed-importer' ); ?></small></div>
 				<div class="rss-feed-importer-stat"><span class="dashicons dashicons-yes-alt"></span><strong><?php echo esc_html( $active_feeds ); ?></strong><small><?php esc_html_e( 'Active feeds', 'rss-feed-importer' ); ?></small></div>
-				<div class="rss-feed-importer-stat"><span class="dashicons dashicons-admin-post"></span><strong><?php echo esc_html( (int) $published->publish ); ?></strong><small><?php esc_html_e( 'Published posts', 'rss-feed-importer' ); ?></small></div>
+				<div class="rss-feed-importer-stat"><span class="dashicons dashicons-admin-post"></span><strong><?php echo esc_html( (int) $imported_posts->found_posts ); ?></strong><small><?php esc_html_e( 'Imported posts', 'rss-feed-importer' ); ?></small></div>
 				<div class="rss-feed-importer-stat"><span class="dashicons dashicons-update"></span><strong><?php echo ! empty( $last_sync['time'] ) ? esc_html( $last_sync['time'] ) : '&mdash;'; ?></strong><small><?php esc_html_e( 'Last sync', 'rss-feed-importer' ); ?></small></div>
 			</div>
 			<?php $this->render_sync_notice(); ?>
@@ -423,7 +444,7 @@ final class RSS_Feed_Importer_Admin {
 			const logBox = document.querySelector('#rss-feed-importer-log');
 			if (!button || !logBox) return;
 			const request = (action, extra = {}) => fetch(ajaxurl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(Object.assign({ action: action, nonce: button.dataset.nonce }, extra)) }).then(response => response.json());
-			const refreshLog = () => request('rss_feed_importer_logs').then(response => { if (response.success) logBox.textContent = response.data.map(item => item.time + '  ' + item.message.replace(/^(.+) done: (\d+) imported, (\d+) updated, (\d+) skipped, (\d+) errors\.$/, '$1 kész: új $2, frissített $3, kihagyott $4, hibás $5.')).join('\n'); });
+			const refreshLog = () => request('rss_feed_importer_logs').then(response => { if (response.success) logBox.textContent = response.data.map(item => item.time + '  ' + item.message.replace(/^(.+) done: (\d+) imported, (\d+) updated, (\d+) skipped, (\d+) pruned, (\d+) errors\.$/, '$1 kész: új $2, frissített $3, kihagyott $4, törölt $5, hibás $6.')).join('\n'); });
 			button.addEventListener('click', function (event) {
 				event.preventDefault(); button.disabled = true; button.classList.add('is-busy'); logBox.textContent = '<?php echo esc_js( __( 'Starting sync...', 'rss-feed-importer' ) ); ?>';
 				request('rss_feed_importer_sync_start').then(() => step()).catch(error => { logBox.textContent = error.message; button.disabled = false; });
@@ -458,7 +479,7 @@ final class RSS_Feed_Importer_Admin {
 			.rss-feed-importer-action-panel p, .rss-feed-importer-panel-heading p { margin: 0; color: #64748b; }
 			.rss-feed-importer-next-sync { margin-top: 8px !important; color: #087e8b !important; font-size: 12px; font-weight: 600; }
 			.rss-feed-importer-action-panel .dashicons { margin: 3px 5px 0 0; vertical-align: top; }
-			.rss-feed-importer-action-panel .is-busy .dashicons { animation: rss-feed-importer-spin .9s linear infinite; }
+			.rss-feed-importer-action-panel .button.is-busy .dashicons { display: inline-block; animation: rss-feed-importer-spin .9s linear infinite; transform-origin: center; vertical-align: top; }
 			@keyframes rss-feed-importer-spin { to { transform: rotate(360deg); } }
 			.rss-feed-importer-log-panel { padding-bottom: 18px; }
 			#rss-feed-importer-log { min-height: 72px; max-height: 230px; overflow: auto; margin: 16px 0 0; padding: 14px 16px; border-radius: 8px; color: #c7f9f1; background: #102b36; font: 12px/1.65 Consolas, monospace; white-space: pre-wrap; }
@@ -542,14 +563,14 @@ final class RSS_Feed_Importer_Admin {
 		if ( ! is_array( $result ) ) {
 			return;
 		}
-		printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( sprintf( __( 'Sync complete. Imported: %1$d, updated: %2$d, skipped: %3$d, errors: %4$d.', 'rss-feed-importer' ), (int) $result['imported'], (int) ( $result['updated'] ?? 0 ), (int) $result['skipped'], (int) $result['errors'] ) ) );
+		printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( sprintf( __( 'Sync complete. Imported: %1$d, updated: %2$d, skipped: %3$d, pruned: %4$d, errors: %5$d.', 'rss-feed-importer' ), (int) $result['imported'], (int) ( $result['updated'] ?? 0 ), (int) $result['skipped'], (int) ( $result['pruned'] ?? 0 ), (int) $result['errors'] ) ) );
 	}
 
 	private function format_logs_for_display( $logs ) {
 		$lines = array();
 		foreach ( $logs as $log ) {
 			$message = isset( $log['message'] ) ? $log['message'] : '';
-			$message = preg_replace( '/^(.+) done: (\d+) imported, (\d+) updated, (\d+) skipped, (\d+) errors\.$/', '$1 kész: új $2, frissített $3, kihagyott $4, hibás $5.', $message );
+			$message = preg_replace( '/^(.+) done: (\d+) imported, (\d+) updated, (\d+) skipped, (\d+) pruned, (\d+) errors\.$/', '$1 kész: új $2, frissített $3, kihagyott $4, törölt $5, hibás $6.', $message );
 			$lines[] = ( $log['time'] ?? '' ) . '  ' . $message;
 		}
 		return implode( "\n", $lines );

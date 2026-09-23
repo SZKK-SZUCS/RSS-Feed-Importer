@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RSS Feed Importer
  * Description: Imports configured RSS feeds as standard WordPress posts and routes them to their original source URLs.
- * Version: 0.9.1
+ * Version: 1.0.0
  * Requires at least: 6.2
  * Requires PHP: 7.4
  * Author: Szurofka Márton, MFÜI
@@ -52,6 +52,9 @@ function rss_feed_importer_translate( $translation, $text, $domain ) {
 		'Bring external news into your native WordPress post flow with predictable categories and source links.' => 'Külső hírek importálása natív WordPress-posztként, kiszámítható kategóriákkal és forráshivatkozásokkal.',
 		'Active feeds' => 'Aktív feedek',
 		'Published posts' => 'Publikált posztok',
+		'Imported posts' => 'Importált posztok',
+		'Keep only the 20 newest imported posts' => 'Csak a 20 legújabb importált poszt megtartása',
+		'Settings' => 'Beállítások',
 		'Last sync' => 'Utolsó szinkron',
 		'Run log' => 'Futási napló',
 		'Live progress from the current manual or scheduled run.' => 'Az aktuális kézi vagy ütemezett futás élő állapota.',
@@ -70,9 +73,9 @@ function rss_feed_importer_translate( $translation, $text, $domain ) {
 		'Scheduled sync started.' => 'Az ütemezett szinkron elindult.',
 		'Manual sync queued.' => 'A kézi szinkron várólistára került.',
 		'Fetching %s...' => '%s letöltése...',
-		'Sync finished. Imported: %1$d, updated: %2$d, skipped: %3$d, errors: %4$d.' => 'A szinkron elkészült. Új: %1$d, frissített: %2$d, kihagyott: %3$d, hibás: %4$d.',
-		'%1$s done: %2$d imported, %3$d updated, %4$d skipped, %5$d errors.' => '%1$s kész: új %2$d, frissített %3$d, kihagyott %4$d, hibás %5$d.',
-		'Sync complete. Imported: %1$d, updated: %2$d, skipped: %3$d, errors: %4$d.' => 'A szinkron elkészült. Új: %1$d, frissített: %2$d, kihagyott: %3$d, hibás: %4$d.',
+		'Sync finished. Imported: %1$d, updated: %2$d, skipped: %3$d, pruned: %4$d, errors: %5$d.' => 'A szinkron elkészült. Új: %1$d, frissített: %2$d, kihagyott: %3$d, törölt: %4$d, hibás: %5$d.',
+		'%1$s done: %2$d imported, %3$d updated, %4$d skipped, %5$d pruned, %6$d errors.' => '%1$s kész: új %2$d, frissített %3$d, kihagyott %4$d, törölt %5$d, hibás %6$d.',
+		'Sync complete. Imported: %1$d, updated: %2$d, skipped: %3$d, pruned: %4$d, errors: %5$d.' => 'A szinkron elkészült. Új: %1$d, frissített: %2$d, kihagyott: %3$d, törölt: %4$d, hibás: %5$d.',
 		'Starting sync...' => 'Szinkron indítása...',
 		'Loading preview...' => 'Előnézet betöltése...',
 		'Enter a feed URL first.' => 'Először adj meg egy feed URL-t.',
@@ -102,7 +105,7 @@ add_action(
 	}
 );
 
-define( 'RSS_FEED_IMPORTER_VERSION', '0.9.1' );
+define( 'RSS_FEED_IMPORTER_VERSION', '1.0.0' );
 define( 'RSS_FEED_IMPORTER_FILE', __FILE__ );
 define( 'RSS_FEED_IMPORTER_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -119,6 +122,18 @@ require_once RSS_FEED_IMPORTER_DIR . 'includes/class-rss-feed-importer.php';
 register_activation_hook( __FILE__, array( 'RSS_Feed_Importer', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'RSS_Feed_Importer', 'deactivate' ) );
 
+add_filter(
+	'plugin_action_links_' . plugin_basename( __FILE__ ),
+	function ( $links ) {
+		$settings_link = sprintf(
+			'<a href="%1$s">%2$s</a>',
+			esc_url( admin_url( 'options-general.php?page=rss-feed-importer' ) ),
+			esc_html__( 'Settings', 'rss-feed-importer' )
+		);
+		array_unshift( $links, $settings_link );
+		return $links;
+	}
+);
 
 // Initialize the updater only when Composer supplied the PUC package.
 if ( class_exists( '\YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
