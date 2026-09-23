@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RSS Feed Importer
  * Description: Imports configured RSS feeds as standard WordPress posts and routes them to their original source URLs.
- * Version: 0.9.0
+ * Version: 0.9.1
  * Requires at least: 6.2
  * Requires PHP: 7.4
  * Author: Szurofka Márton, MFÜI
@@ -102,7 +102,7 @@ add_action(
 	}
 );
 
-define( 'RSS_FEED_IMPORTER_VERSION', '0.9.0' );
+define( 'RSS_FEED_IMPORTER_VERSION', '0.9.1' );
 define( 'RSS_FEED_IMPORTER_FILE', __FILE__ );
 define( 'RSS_FEED_IMPORTER_DIR', plugin_dir_path( __FILE__ ) );
 
