@@ -180,7 +180,7 @@ final class RSS_Feed_Importer_Sync {
 		}
 
 		$timestamp = $this->get_timestamp( $date );
-		$import_from = get_option( RSS_Feed_Importer::IMPORT_FROM_OPTION, '' );
+		$import_from = ! empty( $feed['import_from'] ) ? $feed['import_from'] : '';
 		if ( $import_from && ( ! $timestamp || $timestamp < strtotime( $import_from . ' 00:00:00' ) ) ) {
 			return 'skipped';
 		}

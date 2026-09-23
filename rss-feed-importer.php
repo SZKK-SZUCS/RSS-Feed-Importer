@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RSS Feed Importer
  * Description: Imports configured RSS feeds as standard WordPress posts and routes them to their original source URLs.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Requires at least: 6.2
  * Requires PHP: 7.4
  * Author: Szurofka Márton, MFÜI
@@ -66,7 +66,8 @@ function rss_feed_importer_translate( $translation, $text, $domain ) {
 		'Feed sources' => 'Feedforrások',
 		'Control naming, authors and categories independently for every source.' => 'A név, szerző és kategória forrásonként külön szabályozható.',
 		'The feed name, author and category are stored with each imported post. Empty feed name uses the RSS channel title; empty author uses dc:creator.' => 'A feed neve, szerzője és kategóriája minden importált poszton mentésre kerül. Üres feednévnél az RSS csatorna neve, üres szerzőnél a dc:creator mező használatos.',
-		'Only articles published on or after this date will be imported. Leave empty to import all new articles.' => 'Csak az ezen a napon vagy később publikált cikkek importálódnak. Hagyd üresen az összes új cikk importálásához.',
+		'Only articles published on or after this date will be imported for this feed. Leave empty to import all new articles.' => 'Csak az ezen a napon vagy később publikált cikkek importálódnak ennél a feednél. Hagyd üresen az összes új cikk importálásához.',
+		'Clear date' => 'Dátum törlése',
 		'Configured feeds' => 'Beállított feedek',
 		'Import articles from' => 'Cikkek importálása ettől',
 		'Active feeds' => 'Aktív feedek',
@@ -105,7 +106,7 @@ add_action(
 	}
 );
 
-define( 'RSS_FEED_IMPORTER_VERSION', '1.0.0' );
+define( 'RSS_FEED_IMPORTER_VERSION', '1.1.0' );
 define( 'RSS_FEED_IMPORTER_FILE', __FILE__ );
 define( 'RSS_FEED_IMPORTER_DIR', plugin_dir_path( __FILE__ ) );
 
