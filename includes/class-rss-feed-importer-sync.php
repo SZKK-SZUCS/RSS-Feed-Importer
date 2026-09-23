@@ -23,6 +23,7 @@ final class RSS_Feed_Importer_Sync {
 			'imported' => 0,
 			'updated'  => 0,
 			'skipped'  => 0,
+			'pruned'   => 0,
 			'errors'   => 0,
 		);
 
@@ -36,12 +37,13 @@ final class RSS_Feed_Importer_Sync {
 			$result['imported'] += $feed_result['imported'];
 			$result['updated']  += $feed_result['updated'];
 			$result['skipped']  += $feed_result['skipped'];
+			$result['pruned']   += $feed_result['pruned'];
 			$result['errors']   += $feed_result['errors'];
 		}
 
 		$result['time'] = current_time( 'mysql' );
 		update_option( RSS_Feed_Importer::LAST_SYNC_OPTION, $result, false );
-		$this->log( sprintf( __( 'Sync finished. Imported: %1$d, updated: %2$d, skipped: %3$d, errors: %4$d.', 'rss-feed-importer' ), $result['imported'], $result['updated'], $result['skipped'], $result['errors'] ) );
+		$this->log( sprintf( __( 'Sync finished. Imported: %1$d, updated: %2$d, skipped: %3$d, pruned: %4$d, errors: %5$d.', 'rss-feed-importer' ), $result['imported'], $result['updated'], $result['skipped'], $result['pruned'], $result['errors'] ) );
 		return $result;
 	}
 
@@ -54,7 +56,7 @@ final class RSS_Feed_Importer_Sync {
 			array(
 				'feeds'   => $feeds,
 				'index'   => 0,
-				'result'  => array( 'imported' => 0, 'updated' => 0, 'skipped' => 0, 'errors' => 0 ),
+				'result'  => array( 'imported' => 0, 'updated' => 0, 'skipped' => 0, 'pruned' => 0, 'errors' => 0 ),
 				'started' => current_time( 'mysql' ),
 			),
 			false
@@ -71,7 +73,7 @@ final class RSS_Feed_Importer_Sync {
 			$state['result']['time'] = current_time( 'mysql' );
 			update_option( RSS_Feed_Importer::LAST_SYNC_OPTION, $state['result'], false );
 			delete_option( RSS_Feed_Importer::SYNC_STATE_OPTION );
-			$this->log( sprintf( __( 'Sync finished. Imported: %1$d, updated: %2$d, skipped: %3$d, errors: %4$d.', 'rss-feed-importer' ), $state['result']['imported'], $state['result']['updated'], $state['result']['skipped'], $state['result']['errors'] ) );
+			$this->log( sprintf( __( 'Sync finished. Imported: %1$d, updated: %2$d, skipped: %3$d, pruned: %4$d, errors: %5$d.', 'rss-feed-importer' ), $state['result']['imported'], $state['result']['updated'], $state['result']['skipped'], $state['result']['pruned'], $state['result']['errors'] ) );
 			return array( 'complete' => true, 'result' => $state['result'] );
 		}
 
@@ -86,11 +88,11 @@ final class RSS_Feed_Importer_Sync {
 
 		$this->log( sprintf( __( 'Fetching %s...', 'rss-feed-importer' ), $this->get_feed_label( $feed ) ) );
 		$feed_result = $this->sync_feed( $feed );
-		foreach ( array( 'imported', 'updated', 'skipped', 'errors' ) as $key ) {
+		foreach ( array( 'imported', 'updated', 'skipped', 'pruned', 'errors' ) as $key ) {
 			$state['result'][ $key ] += $feed_result[ $key ];
 		}
 		update_option( RSS_Feed_Importer::SYNC_STATE_OPTION, $state, false );
-		$this->log( sprintf( __( '%1$s done: %2$d imported, %3$d updated, %4$d skipped, %5$d errors.', 'rss-feed-importer' ), $this->get_feed_label( $feed ), $feed_result['imported'], $feed_result['updated'], $feed_result['skipped'], $feed_result['errors'] ) );
+		$this->log( sprintf( __( '%1$s done: %2$d imported, %3$d updated, %4$d skipped, %5$d pruned, %6$d errors.', 'rss-feed-importer' ), $this->get_feed_label( $feed ), $feed_result['imported'], $feed_result['updated'], $feed_result['skipped'], $feed_result['pruned'], $feed_result['errors'] ) );
 		return array( 'complete' => false, 'result' => $state['result'] );
 	}
 
@@ -128,6 +130,7 @@ final class RSS_Feed_Importer_Sync {
 			'imported' => 0,
 			'updated'  => 0,
 			'skipped'  => 0,
+			'pruned'   => 0,
 			'errors'   => 0,
 		);
 		$feed_url = esc_url_raw( $feed['url'] );
@@ -158,6 +161,9 @@ final class RSS_Feed_Importer_Sync {
 			if ( 'imported' === $status || 'updated' === $status || 'skipped' === $status || 'error' === $status ) {
 				$result[ 'error' === $status ? 'errors' : $status ]++;
 			}
+		}
+		if ( ! empty( $feed['retain_20'] ) ) {
+			$result['pruned'] = $this->prune_old_posts( $feed_url );
 		}
 		return $result;
 	}
@@ -264,6 +270,38 @@ final class RSS_Feed_Importer_Sync {
 			}
 		}
 		return $existing;
+	}
+
+	private function prune_old_posts( $feed_url ) {
+		$old_posts = get_posts(
+			array(
+				'post_type'      => 'post',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'offset'         => 20,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'fields'         => 'ids',
+				'no_found_rows'   => true,
+				'meta_key'       => '_rss_feed_url',
+				'meta_value'     => $feed_url,
+			)
+		);
+		$deleted = 0;
+		foreach ( $old_posts as $post_id ) {
+			if ( $this->delete_post_with_media( $post_id ) ) {
+				$deleted++;
+			}
+		}
+		return $deleted;
+	}
+
+	private function delete_post_with_media( $post_id ) {
+		$thumbnail_id = get_post_thumbnail_id( $post_id );
+		if ( $thumbnail_id ) {
+			wp_delete_attachment( $thumbnail_id, true );
+		}
+		return wp_delete_post( $post_id, true );
 	}
 
 	private function set_featured_image( $post_id, $item, $title ) {
