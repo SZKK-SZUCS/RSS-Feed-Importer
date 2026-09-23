@@ -16,9 +16,35 @@ final class RSS_Feed_Importer {
 	const SYNC_STATE_OPTION = 'rss_feed_importer_sync_state';
 
 	public static function init() {
+		self::migrate_legacy_import_from();
 		new RSS_Feed_Importer_Admin();
 		self::$sync = new RSS_Feed_Importer_Sync();
 		new RSS_Feed_Importer_Frontend();
+	}
+
+	private static function migrate_legacy_import_from() {
+		$legacy_value = get_option( self::IMPORT_FROM_OPTION, false );
+		if ( false === $legacy_value ) {
+			return;
+		}
+		if ( $legacy_value ) {
+			$feeds   = (array) get_option( self::OPTION_NAME, array() );
+			$changed = false;
+			foreach ( $feeds as &$feed ) {
+				if ( is_string( $feed ) ) {
+					$feed = array( 'url' => $feed );
+				}
+				if ( empty( $feed['import_from'] ) ) {
+					$feed['import_from'] = $legacy_value;
+					$changed             = true;
+				}
+			}
+			unset( $feed );
+			if ( $changed ) {
+				update_option( self::OPTION_NAME, $feeds );
+			}
+		}
+		delete_option( self::IMPORT_FROM_OPTION );
 	}
 
 	private static $sync;
